@@ -1,0 +1,195 @@
+package com.company;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class Main {
+
+    public static void main(String[] args) throws ParseException
+    {
+        Scanner sc = new Scanner(System.in);
+        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd");
+        BTree<Integer, Integer> tree = new BTree<>(2);
+        tree.add(1, 5);
+        tree.add(2, 5);
+        tree.add(4, 5);
+        tree.add(5, 5);
+        tree.add(6, 5);
+        tree.add(7, 5);
+        tree.add(7, 5);
+        tree.add(8, 5);
+        tree.add(9, 5);
+        tree.add(10, 5);
+    }
+}
+class BTree<K extends Comparable<K>, V> implements RangeMap<K, V>{
+    public Node<K, V> rootNode;
+    int degree;
+    public BTree(int deg){
+        degree = deg;
+        rootNode = new Node<K, V>(deg, null);
+    }
+    @Override
+    public int size() {
+        return rootNode.size();
+    }
+    @Override
+    public boolean isEmpty() {
+        return rootNode.size() == 0;
+    }
+    @Override
+    public boolean contains(K key) {
+        return false;
+    }
+    @Override
+    public V lookup(K key) {
+        return null;
+    }
+    @Override
+    public List<V> lookupRange(K from, K to) {
+        return null;
+    }
+
+    @Override
+    public void add(K key, V value) {
+        var newEntry = new Record<K, V>(key, value);
+        var tempNode = rootNode;
+        var indexToTraverse = rootNode.getIndexOfKeys(newEntry);
+
+        while(tempNode.children.size() != 0){
+            tempNode = tempNode.children.get(indexToTraverse);
+            indexToTraverse = tempNode.getIndexOfKeys(newEntry);
+        }
+        if(tempNode.isFull()){
+            var newRoot = tempNode.split();
+            if(newRoot.size() == 1){
+                rootNode = newRoot.get(0);
+            }
+            add(key, value);
+        }
+        else{
+            tempNode.entries.add(indexToTraverse, newEntry);
+        }
+    }
+}
+
+class Node<K extends Comparable<K>, V>{
+    int degree;
+    Node<K, V> parent;
+    ArrayList<Record<K, V>> entries;
+    ArrayList<Node<K, V>> children;
+    public Node(int deg, Node p){
+        parent = p;
+        degree = deg;
+        entries = new ArrayList<>();
+        children = new ArrayList<>();
+    }
+    public boolean isFull(){
+        return entries.size() == degree * 2 - 1;
+    }
+    public int size(){
+        int sum = entries.size();
+        for(var item : children){
+            sum += item.size();
+        }
+        return sum;
+    }
+
+    public ArrayList<Node<K, V>> split(){
+        int midIndex = (entries.size() - 1) / 2;
+        ArrayList<Record<K, V>> left = new ArrayList<>();
+        ArrayList<Record<K, V>> right = new ArrayList<>();
+        Node<K, V> leftNode;
+        Node<K, V> rightNode;
+
+        for (int i = 0; i < degree - 1; i++) {
+            left.add(entries.get(i));
+        }
+        for (int i = degree; i < entries.size(); i++) {
+            right.add(entries.get(i));
+        }
+        for (int i = 0; i < degree - 1; i++) {
+            entries.remove(0);
+        }
+        for (int i = 0; i < degree - 1; i++) {
+            entries.remove(1);
+        }
+        var result = new ArrayList<Node<K, V>>();
+
+        if(parent == null){
+            var newParent = new Node<K, V>(degree, null);
+            parent = newParent;
+            rightNode = new Node<K, V>(degree, newParent);
+            leftNode = new Node<K, V>(degree, newParent);
+            leftNode.entries = left;
+            rightNode.entries = right;
+
+            newParent.children.add(leftNode);
+            newParent.children.add(rightNode);
+            newParent.entries.add(entries.get(0));
+            entries.clear();
+            result.add(newParent);
+            return result;
+        }
+        else{
+            Record<K, V> midEntry = entries.get(0);
+            rightNode = new Node<K, V>(degree, parent);
+            leftNode = new Node<K, V>(degree, parent);
+            leftNode.entries = left;
+            rightNode.entries = right;
+            int index = parent.getIndexOfKeys(midEntry);
+
+            if(parent.isFull()){
+                result = parent.split();
+
+            }
+            else{
+                parent.entries.add(index, midEntry);
+            }
+            result.add(leftNode);
+            result.add(rightNode);
+            parent.children.remove(index);
+            parent.children.add(leftNode);
+            parent.children.add(rightNode);
+            return result;
+        }
+    }
+    public int getIndexOfKeys(Record<K, V> entry){
+        if(entries.size() == 0) return 0;
+
+        if(entries.get(0).key.compareTo(entry.key) >= 0){
+            return 0;
+        }
+        for (int i = 0; i < entries.size() - 1; i++) {
+            if(entries.get(i).key.compareTo(entry.key) == -1 && entries.get(i + 1).key.compareTo(entry.key) == 1){
+                return i + 1;
+            }
+            else if((entries.get(i).key.compareTo(entry.key) == 0)){
+                return i;
+            }
+            else if((entries.get(i + 1).key.compareTo(entry.key) == 0)){
+                return i + 1;
+            }
+        }
+        return entries.size();
+    }
+}
+
+
+class Record<K, V>{
+    K key;
+    V value;
+    public Record(K k, V v){
+        key = k;
+        value = v;
+    }
+}
+interface RangeMap<K,V> {
+    int size();
+    boolean isEmpty();
+    void add(K key, V value);
+    boolean contains(K key);
+    V lookup(K key);
+    List<V> lookupRange(K from, K to);
+}

@@ -1,0 +1,215 @@
+package com.company;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+public class Main {
+
+    public static double median(ArrayList<Double> arr){
+
+        if(arr.size() % 2 == 0){
+            var index1 = arr.size() / 2;
+            var index2 = index1 - 1;
+            return (arr.get(index1) + arr.get(index2)) / 2.0;
+        }
+        else{
+            return arr.get((arr.size() - 1) / 2);
+        }
+    }
+
+    public static ArrayList<Double> merge_sort(ArrayList<Double> left_arr, ArrayList<Double> right_arr){
+        ArrayList<Double> result = new ArrayList<>();
+        int arrs_size = left_arr.size() + right_arr.size();
+        if (left_arr.size() == 1 && right_arr.size() == 1) {
+            if (right_arr.get(0) >= left_arr.get(0)) {
+                result.add(left_arr.get(0));
+                result.add(right_arr.get(0));
+            }
+            else {
+                result.add(right_arr.get(0));
+                result.add(left_arr.get(0));
+            }
+            return result;
+        }
+        int r_ind = 0;
+        int l_ind = 0;
+        for (int i = 0; i < arrs_size; i++) {
+            if (r_ind >= right_arr.size() && l_ind >= left_arr.size()) {
+                break;
+            }
+            if (r_ind >= right_arr.size()) {
+                result.add(left_arr.get(l_ind));
+                l_ind++;
+                continue;
+            }
+            if (l_ind >= left_arr.size()) {
+                result.add(right_arr.get(r_ind));
+                r_ind++;
+                continue;
+            }
+            if (left_arr.get(l_ind) >= right_arr.get(r_ind)) {
+                result.add(right_arr.get(r_ind));
+                r_ind++;
+            } else {
+                result.add(left_arr.get(l_ind));
+                l_ind++;
+            }
+        }
+        return result;
+    }
+
+    public static ArrayList split(ArrayList<Double> array) {
+        if (array.size() <= 1) return array;
+        int mid = (array.size() - 1) / 2;
+        ArrayList<Double> left = new ArrayList<>();
+        ArrayList<Double> right = new ArrayList<>();
+
+        for (int i = 0; i <= mid; i++) {
+            left.add(array.get(i));
+        }
+        for (int i = mid + 1; i < array.size(); i++) {
+            right.add(array.get(i));
+        }
+        var l = split(left);
+        var r = split(right);
+        return merge_sort(l, r);
+    }
+
+    public static ArrayList<Double> sort(LinkedList<Double> array){
+        return split(new ArrayList<Double>(array));
+    }
+
+    public static ArrayList<Record> radixSort(ArrayList<Record> a)
+    {
+        int max = 40000000;
+        int exp = 1;
+        while(exp <= max)
+        {
+            a = countSort(a, exp);
+            exp *= 10;
+        }
+        return a;
+    }
+    public static ArrayList<Record> countSort(ArrayList<Record> a, int exp)
+    {
+        int count[] = new int[10];
+        for (int i = 0; i < a.size(); i++) {
+            count[a.get(i).dateInt / exp % 10] += 1;
+        }
+        for (int i = 1; i < 10; i++) {
+            count[i] = count[i] + count[i - 1];
+        }
+        Record[] result = new Record[a.size()];
+        for (int i = a.size() - 1; i >= 0 ; i--) {
+            int t = count[a.get(i).dateInt / exp % 10];
+            result[t - 1] = a.get(i);
+            count[a.get(i).dateInt / exp % 10] -= 1;
+        }
+        return new ArrayList<Record>(Arrays.asList(result));
+    }
+
+    public static void main(String[] args) throws ParseException
+    {
+        Scanner sc = new Scanner(System.in);
+        var fl = sc.nextLine().split(" ");
+        int N = Integer.parseInt(fl[0]);
+        int D = Integer.parseInt(fl[1]);
+        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd");
+        ArrayList<Record> records = new ArrayList<>();
+
+        for (int i = 0; i < N; i++)
+        {
+            Calendar date = Calendar.getInstance();
+            var lines = sc.nextLine().split(" ");
+            String d = lines[0];
+            date.setTime(parser.parse(d));
+            var dateString = String.join("", d.split("-"));
+            var value = Double.parseDouble(lines[1].replace("$", ""));
+            records.add(new Record(date, value, Integer.parseInt(dateString)));
+        }
+        records = radixSort(records);
+
+        LinkedList<Double> trailings = new LinkedList<>();
+        Calendar trailingDate = records.get(0).date;
+        double buffer = 0d;
+        int notifications = 0;
+        int daysPassed = 0;
+
+        for (int i = 0; i < records.size(); i++)
+        {
+            if(trailingDate.getTimeInMillis() == records.get(i).date.getTimeInMillis())
+            {
+                buffer += records.get(i).payment;
+                if(daysPassed >= D)
+                {
+                    var median = 2 * median(sort(trailings));
+                    if(buffer >= median)
+                    {
+                        notifications++;
+                    }
+                }
+                continue;
+            }
+            if(trailings.size() == D){
+                trailings.poll();
+            }
+            trailings.add(buffer);
+            buffer = 0d;
+            var diff = records.get(i).date.getTimeInMillis() - trailingDate.getTimeInMillis();
+            long days = TimeUnit.MILLISECONDS.toDays(diff);
+            buffer += records.get(i).payment;
+            for (int j = 0; j < days; j++)
+            {
+                daysPassed += 1;
+                trailingDate.add(Calendar.DATE, 1);
+            }
+            for (int j = 0; j < days - 1; j++)
+            {
+                if(trailings.size() == D){
+                    trailings.poll();
+                }
+                trailings.add(0d);
+            }
+            if(daysPassed >= D)
+            {
+                var median = 2 * median(sort(trailings));
+                if(buffer >= median)
+                {
+                    notifications++;
+                }
+            }
+        }
+        System.out.println(notifications);
+
+    }
+
+}
+class Record implements Comparable<Calendar>{
+    public Calendar date;
+    public double payment;
+    public int dateInt;
+    public Record(Calendar d, double p, int s) {
+        date = d;
+        payment = p;
+        dateInt = s;
+    }
+    public void print(){
+        System.out.print(date.get(Calendar.YEAR) + "-" + (date.get(Calendar.MONTH) + 1) + "-" + date.get(Calendar.DATE) + " ");
+        System.out.println("$" + payment);
+    }
+    @Override
+    public int compareTo(Calendar o) {
+        if(date.getTimeInMillis() > o.getTimeInMillis()){
+            return 1;
+        }
+        else if(date.getTimeInMillis() < o.getTimeInMillis()){
+            return -1;
+        }
+        return 0;
+    }
+}
+
+
+
